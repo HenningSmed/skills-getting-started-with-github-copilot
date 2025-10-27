@@ -28,8 +28,12 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="participants-section">
             <p><strong>Current Participants:</strong></p>
             ${details.participants.length > 0 
-              ? `<ul class="participants-list">
-                  ${details.participants.map(email => `<li>${email}</li>`).join('')}
+              ? `<ul class="participants-list" style="list-style-type: none; padding: 0;">
+                  ${details.participants.map(email => `
+                    <li>
+                      ${email}
+                      <span class="delete-icon" onclick="unregisterParticipant('${name}', '${email}', this)">🗑️</span>
+                    </li>`).join('')}
                  </ul>`
               : '<p class="no-participants">No participants yet</p>'
             }
@@ -71,6 +75,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // Refresh the activities list to show the new participant
+        await fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -89,6 +95,46 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error signing up:", error);
     }
   });
+
+  // Function to unregister a participant
+  async function unregisterParticipant(activityName, email, element) {
+    try {
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`,
+        {
+          method: "POST",
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Remove the participant from the list
+        const listItem = element.parentElement;
+        listItem.remove();
+        
+        // Update spots left count
+        await fetchActivities(); // Refresh the entire list to show updated counts
+        
+        // Show success message
+        messageDiv.textContent = result.message || "Successfully unregistered";
+        messageDiv.className = "success";
+      } else {
+        messageDiv.textContent = result.detail || "Failed to unregister participant";
+        messageDiv.className = "error";
+      }
+
+      messageDiv.classList.remove("hidden");
+      setTimeout(() => {
+        messageDiv.classList.add("hidden");
+      }, 5000);
+    } catch (error) {
+      messageDiv.textContent = "Failed to unregister participant. Please try again.";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      console.error("Error unregistering participant:", error);
+    }
+  }
 
   // Initialize app
   fetchActivities();
